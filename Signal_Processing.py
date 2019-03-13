@@ -52,8 +52,8 @@ def RemoveDC(BaseBandReal,BaseBandImage):		#use LEVD algorithm to calculate the 
 	tempdata = np.zeros(4096,dtype = float)
 	tempdata2 = np.zeros(4096,dtype = float)
 	temp_val = 0
-	(row1,column1) = BaseBandReal.shape
-	(row2,column2) = BaseBandImage.shape
+	row1,column1 = BaseBandReal.shape
+	row2,column2 = BaseBandImage.shape
 	if column1 > 4096 or row1 != row2 or column1 != column2:
 		return
 	
@@ -106,6 +106,26 @@ def RemoveDC(BaseBandReal,BaseBandImage):		#use LEVD algorithm to calculate the 
 		BaseBandImage[f] = BaseBandImage[f] - DCValue[1][f]
 		
 		return BaseBandReal,BaseBandImage
+		
+def CalculateDistance(BaseBandReal,BaseBandImage):
+	distance = 0
+	tempcomplex = 0+0j
+	tempdata = np.zeros(4096,dtype = float)
+	tempdata2 = np.zeros(4096,dtype = float)
+	tempdata3 = np.zeros(4096,dtype = float)
+	temp_val = 0
+	phasedata = np.zeros([NumFreq,4096],dtype = float)
+	ignorefreq = np.zeros(NumFreq,dtype = int)
+	
+	row1,column1 = BaseBandReal.shape
+	row2,column2 = BaseBandImage.shape
+	if column1 > 4096 or row1 != row2 or column1 != column2:
+		return
+	
+	for f in range(0,NumFreq):
+		ignorefreq[f] = 0
+		#get complex number
+		tempcomplex.real = 
 		
 		
 		
