@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.fftpack import fft,ifft
 from scipy.signal import hilbert,chirp
 from scipy import signal
+import math as ma
 
 #17~23Khz, and 16 subfrequencies which is 17, 17.400, 17.800, 18.200, 18.600, 19.000, 19.400, 19.800, 20.200, 20.600, 21.000, 21.400, 21.800, 22.200, 22.600, 23.000
 
@@ -19,8 +20,11 @@ DC_TREND = 0.25		#DC_TREND threshold, may need calibrating
 MaxValue = np.zeros([2,NumFreq],dtype = float)
 MinValue = np.zeros([2,NumFreq],dtype = float)		#this two arrays store the max and min value of real and image baseband signal
 DCValue = np.zeros([2,NumFreq],dtype = float)		#store the DC value estimation result
+WaveLength = np.zeros(NumFreq,dtype = float)
 for i in range(0,NumFreq):
 	Freqs[i] = 17000+i*400
+	WaveLength[i] = SPEED/Freqs[i]
+
 
 
 def GetBaseband(databuffer):	#databuffer is a 16*n array, where n is the number of sampling point in each frequencies.
@@ -109,7 +113,8 @@ def RemoveDC(BaseBandReal,BaseBandImage):		#use LEVD algorithm to calculate the 
 		
 def CalculateDistance(BaseBandReal,BaseBandImage):
 	distance = 0
-	tempcomplex = 0+0j
+	tempcomplexr = np.zeros(4096,dtype=float)
+	tempcomplexi = np.zeros(4096,dtype=float)	#this two arrays represent the real and image part of the baseband signal
 	tempdata = np.zeros(4096,dtype = float)
 	tempdata2 = np.zeros(4096,dtype = float)
 	tempdata3 = np.zeros(4096,dtype = float)
@@ -122,11 +127,123 @@ def CalculateDistance(BaseBandReal,BaseBandImage):
 	if column1 > 4096 or row1 != row2 or column1 != column2:
 		return
 	
+	#process in every frequency component
 	for f in range(0,NumFreq):
 		ignorefreq[f] = 0
 		#get complex number
-		tempcomplex.real = 
+		tempcomplexr = BaseBandReal[f]
+		tempcomplexi = BaseBandImage[f]
 		
+		#get magnitude
+		tempdata = BaseBandReal[f] * BaseBandReal[f] + BaseBandImage[f] * BaseBandImage[f]
+		temp_val = sum(tempdata)
+		
+		if temp_val/column1>POWER_THR:
+			for n in range(0:column1):
+				phasedata[f][n] = ma.atan2(tempcomplexi[n],tempcomplexr[n])
+			#phase unwarp
+			for i in range(1:column1):
+				while phasedata[f][i]-phasedata[f][i-1]>np.pi:
+					phasedata[f][i]=phasedata[f][i]-2*np.pi
+				while phasedata[f][i]-phasedata[f][i-1]<-np.pi:
+					phasedata[f][i]=phasedata[f][i]+2*np.pi
+			
+			if abs(phasedata[f][column1-1]-phasedata[f][0]>np.pi/4):
+				for i in range(0,2):
+					DCValue[i][f]=(1-DC_TREND*2)*DCValue[i][f]+(MinValue[i][f]+MaxValue[i][f])/2*DC_TREND*2
+			
+			#prepare linear regression
+			#remove start phase
+			temp_val=-phasedata[f][0]
+			tempdata = phasedata[f]+temp_val
+			#divide the constants
+			temp_val=2*np.pi/WaveLength[f]
+			phasedata[f]=tempdata/temp_val
+		else:	#ignore the low power vector
+			ignorefreq[f]=1
+		
+	#linear regression
+	for i in range(0:column1):
+		tempdata2[i] = i
+	sumxy=0
+	sumy=0
+	numfreqused=0
+	for f in range(0:NumFreq):
+		if ignorefreq[f]==1:
+			continue
+		
+		numfreqused = numfreqused+1
+		
+		tempdata = phasedata[f]*tempdata2
+		temp_val = sum(tempdata)
+		sumxy = temp_val+sumxy
+		temp_val = sum(phasedata[f])
+		sumy = sumy+temp_val
+		
+	if numfreqused==0:
+		distance = 0
+		return distance
+	
+	deltax=NumFreq*((column1-1)*column1*(2*column-1)/6-(column1-1)*column1*(column1-1)/4)
+	delta=(sumxy-sumy*(column1-1)/2.0)/deltax*NumFreq/numfreqused
+	
+	varsum=0
+	var_val = np.zeros(NumFreq,dtype=float)
+	for i in range(0,column1):
+		tempdata2[i]=i*delta
+	
+	#get variance of each freq
+	for f in range(0,NumFreq):
+		var_val[f]=0
+		if(ignorefreq[f]==1):
+			continue
+		tempdata = phasedata[f]-tempdata2
+		tempdata3 = tempdata*tempdata
+		var_val[f] = sum(tempdata3)
+	varsum=varsum/numfreqused
+	for f in range(0,NumFreq):
+		if ignorefreq[f]==1:
+			continue
+		if var_val[f]>varsum:
+			ignorefreq[f]=1
+	
+	for i in range(0,column1):
+		tempdata2[i] = i
+	
+	#linear regression
+	sumxy=0
+	sumy=0
+	numfreqused=0
+	for f in range(0,NumFreq):
+		if ignorefreq[f]==1:
+			continue
+		numfreqused=numfreqused+1
+		
+		tempdata = tempdata2*phasedata[f]
+		temp_val = sum(tempdata)
+		sumxy = sumxy+temp_val
+		temp_val = sum(phasedata[f])
+		sumy = sumy+temp_val
+		
+	if numfreqused == 0:
+		distance = 0
+		return distance
+	
+	delta=(sumxy-sumy*(column1-1)/2.0)/deltax*NumFreq/numfreqused
+	
+	distance = -delta*column1/2
+	return distance
+	
+def GetDistanceChange(databuffer):
+	distancechange = 0
+	BaseBandReal,BaseBandImage = GetBaseband(databuffer)
+	BaseBandReal,BaseBandImage = RemoveDC(BaseBandReal,BaseBandImage)
+	distancechange = CalculateDistance(BaseBandReal,BaseBandImage)
+	return 	distancechange
+			
+
+GetDistanceChange(databuffer)
+	
 		
 		
 		
