@@ -21,6 +21,7 @@ MaxValue = np.zeros([2,NumFreq],dtype = float)
 MinValue = np.zeros([2,NumFreq],dtype = float)		#this two arrays store the max and min value of real and image baseband signal
 DCValue = np.zeros([2,NumFreq],dtype = float)		#store the DC value estimation result
 WaveLength = np.zeros(NumFreq,dtype = float)
+
 for i in range(0,NumFreq):
 	Freqs[i] = 17000+i*400
 	WaveLength[i] = SPEED/Freqs[i]
@@ -43,12 +44,17 @@ def GetBaseband(databuffer):	#databuffer is a 16*n array, where n is the number 
 	
 	#turn the databuffer from int to float
 	databuffer = databuffer.astype(np.float)
-	#get I and Q from databuffer
+	#get I and Q from databuffer, and this step should be redesigned for the time shift.
 	Ibuffer = databuffer * cosbuffer
 	Qbuffer = -1 * databuffer * cosbuffer
 	
 	#applying CIC filter to I/Q buffer and get the baseband signal
 	#and return the real part(I) and image part(Q) of baseband signal
+	#use the sine and cosine to multiply the recorded signal(16 different frequencies component) and use the same CIC filter to cut the useful part 
+	#since the same frequency multiplication get the phase information (less than 100Hz), other frequency will make the multiplication result higher,
+	#which is higher than 400Hz(the frequency interval is 400Hz). So the same low pass CIC filter will get each frequency part's phase information and 
+	#split the signal into 16x2 parts(I/Q and 16frequencies component). Then, we remove the DC component and use linear regression to get the distance change.
+	#So the return value of this function is the two NumFreq x n array, which are the BaseBandReal and BaseBandImage.
 	
 	
 	#input should be the format of NumFreq*n array
@@ -139,10 +145,10 @@ def CalculateDistance(BaseBandReal,BaseBandImage):
 		temp_val = sum(tempdata)
 		
 		if temp_val/column1>POWER_THR:
-			for n in range(0:column1):
+			for n in range(0,column1):
 				phasedata[f][n] = ma.atan2(tempcomplexi[n],tempcomplexr[n])
 			#phase unwarp
-			for i in range(1:column1):
+			for i in range(1,column1):
 				while phasedata[f][i]-phasedata[f][i-1]>np.pi:
 					phasedata[f][i]=phasedata[f][i]-2*np.pi
 				while phasedata[f][i]-phasedata[f][i-1]<-np.pi:
@@ -163,12 +169,12 @@ def CalculateDistance(BaseBandReal,BaseBandImage):
 			ignorefreq[f]=1
 		
 	#linear regression
-	for i in range(0:column1):
+	for i in range(0,column1):
 		tempdata2[i] = i
 	sumxy=0
 	sumy=0
 	numfreqused=0
-	for f in range(0:NumFreq):
+	for f in range(0,NumFreq):
 		if ignorefreq[f]==1:
 			continue
 		
@@ -234,7 +240,7 @@ def CalculateDistance(BaseBandReal,BaseBandImage):
 	distance = -delta*column1/2
 	return distance
 	
-def GetDistanceChange(databuffer):
+def GetDistanceChange(databuffer):		#feed the recorded data into our signal processing function
 	distancechange = 0
 	BaseBandReal,BaseBandImage = GetBaseband(databuffer)
 	BaseBandReal,BaseBandImage = RemoveDC(BaseBandReal,BaseBandImage)
@@ -242,8 +248,8 @@ def GetDistanceChange(databuffer):
 	return 	distancechange
 			
 
-GetDistanceChange(databuffer)
-	
+
+
 		
 		
 		
