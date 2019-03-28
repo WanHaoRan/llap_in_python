@@ -24,7 +24,11 @@ B1 = tk.Button(top,text = "PLAY", command = playTheSignal)
 
 B2 = tk.Button(top,text = "STOP", command = stopTheSignal)
 
+text = tk.Text(top,width = 30,height = 2)
+text.pack()
+text.insert(1.0,'Distance:  cm')
 
 B1.pack()
 B2.pack()
+
 top.mainloop()
