@@ -1,6 +1,6 @@
 import Tkinter as tk
 import tkMessageBox
-import Signal_Processing.py
+import Signal_Processing
 
 #there are several UI components, which are 
 #"play button": click this button will start playing the CW acoustic signal and recording the reflected signal, and start counter
@@ -11,12 +11,20 @@ import Signal_Processing.py
 top = tk.Tk()
 
 def playTheSignal():
-	#tkMessageBox.showinfo("Hello Python","Hello Runoob")
-	PlayAudio()		#play the CW signal
-	RecordAudio()	#record the CW signal
+	tkMessageBox.showinfo("Start!","Start playing audio and recording...")
+	#PlayAudio()		#play the CW signal
+	#RecordAudio()		#record the CW signal
 	
-B = tk.Button(top,text = "PLAY", command = playTheSignal)
+def stopTheSignal():
+	tkMessageBox.showinfo("Stop!","Stop playing audio and recording...")
+	#StopAudio()		#stop the CW signal
+	#StopRecord()		#stop recording
+		
+B1 = tk.Button(top,text = "PLAY", command = playTheSignal)
+
+B2 = tk.Button(top,text = "STOP", command = stopTheSignal)
 
 
-B.pack()
+B1.pack()
+B2.pack()
 top.mainloop()
