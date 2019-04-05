@@ -21,14 +21,13 @@ MaxValue = np.zeros([2,NumFreq],dtype = float)
 MinValue = np.zeros([2,NumFreq],dtype = float)		#this two arrays store the max and min value of real and image baseband signal
 DCValue = np.zeros([2,NumFreq],dtype = float)		#store the DC value estimation result
 WaveLength = np.zeros(NumFreq,dtype = float)
-
 for i in range(0,NumFreq):
 	Freqs[i] = 17000+i*400
 	WaveLength[i] = SPEED/Freqs[i]
 
 
 
-def GetBaseband(databuffer):	#databuffer is a 16*n array, where n is the number of sampling point in each frequencies.
+def GetBaseband(databuffer):	#databuffer is a 1d 1*n array, where n is the number of sampling point in each frequencies.
 	(row,column) = databuffer.shape
 	#the sin and cos buffer afterward will be predifined to achieve faster running time
 	sinbuffer = np.zeros([NumFreq,column],dtype = float)
@@ -37,20 +36,25 @@ def GetBaseband(databuffer):	#databuffer is a 16*n array, where n is the number 
 		for j in range(0,column):
 			sinbuffer[i][j] = np.sin(2*np.pi*j/AUDIO_SAMPLE_RATE*Freqs[i])
 			cosbuffer[i][j] = np.cos(2*np.pi*j/AUDIO_SAMPLE_RATE*Freqs[i])
-	#CIC filter also needs initializing
-	
-	
-	
-	
 	#turn the databuffer from int to float
-	databuffer = databuffer.astype(np.float)
+	tdatabuffer = databuffer.astype(np.float)
+	IBuffer = np.zeros([NumFreq,column],dtype = float)
+	QBuffer = np.zeros([NumFreq,column],dtype = float)
 	#get I and Q from databuffer, and this step should be redesigned for the time shift.
-	Ibuffer = databuffer * cosbuffer
-	Qbuffer = -1 * databuffer * cosbuffer
-	
-	#applying CIC filter to I/Q buffer and get the baseband signal
+	for i in range(0,NumFreq):
+		IBuffer[i] = cosbuffer[i]*tdatabuffer
+		QBuffer[i] = -1*sinbuffer[i]*tdatabuffer
+		f1,f2=signal.butter(3,175/AUDIO_SAMPLE_RATE,btype='lowpass',analog=False,output='ba')
+		m1 = IBuffer[i]
+		m1 = signal.filtfilt(f1,f2,m1)
+		IBuffer[i] = m1
+		m1 = QBuffer[i]
+		m1 = signal.filtfilt(f1,f2,m1)
+		QBuffer[i] = m1
+	return IBuffer,QBuffer
+	#applying lowpass filter to I/Q buffer and get the baseband signal
 	#and return the real part(I) and image part(Q) of baseband signal
-	#use the sine and cosine to multiply the recorded signal(16 different frequencies component) and use the same CIC filter to cut the useful part 
+	#use the sine and cosine to multiply the recorded signal(16 different frequencies component) and use the same lowpass filter to cut the useful part 
 	#since the same frequency multiplication get the phase information (less than 100Hz), other frequency will make the multiplication result higher,
 	#which is higher than 400Hz(the frequency interval is 400Hz). So the same low pass CIC filter will get each frequency part's phase information and 
 	#split the signal into 16x2 parts(I/Q and 16frequencies component). Then, we remove the DC component and use linear regression to get the distance change.
