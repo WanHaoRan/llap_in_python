@@ -1,5 +1,6 @@
 import pyaudio
 
+
 def get_indexs():
 	p = pyaudio.PyAudio()
 	info = p.get_host_api_info_by_index(0)
