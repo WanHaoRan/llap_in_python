@@ -11,33 +11,38 @@ RESPEAKER_WIDTH = 2
 RESPEAKER_INDEX = gi.get_indexs()  # get input device id
 CHUNK = 1024
 RECORD_SECONDS = 3
-WAVE_OUTPUT_FILENAME = "output.wav"
+#WAVE_OUTPUT_FILENAME = "output.wav"
 
-p = pyaudio.PyAudio()
+def record():
+	p = pyaudio.PyAudio()
 
-stream = p.open(
-            rate=RESPEAKER_RATE,
-            format=p.get_format_from_width(RESPEAKER_WIDTH),
-            channels=RESPEAKER_CHANNELS,
-            input=True,
-            input_device_index=RESPEAKER_INDEX,)
+	stream = p.open(
+				rate=RESPEAKER_RATE,
+				format=p.get_format_from_width(RESPEAKER_WIDTH),
+				channels=RESPEAKER_CHANNELS,
+				input=True,
+				input_device_index=RESPEAKER_INDEX,)
 
-print("* recording")
+	print("* recording")
 
-frames = [] 
+	frames = [] 
 
-#for i in range(0, int(RESPEAKER_RATE / CHUNK * RECORD_SECONDS)):
-data = stream.read(100)
-# extract channel 0 data from 8 channels, if you want to extract channel 1, please change to [1::8]
-a = np.fromstring(data,dtype = np.int16)[0::8]
-frames.append(a)
+	#for i in range(0, int(RESPEAKER_RATE / CHUNK * RECORD_SECONDS)):
+	data = stream.read(100)
+	# extract channel 0 data from 8 channels, if you want to extract channel 1, please change to [1::8]
+	a = np.fromstring(data,dtype = np.int16)[0::8]
+	frames.append(a)
 
-print("* done recording")
+	print("* done recording")
 
-stream.stop_stream()
-stream.close()
-p.terminate()
+	stream.stop_stream()
+	stream.close()
+	p.terminate()
+	return  frames[0]
 
+#a = record()
+#print a
+'''
 y = range(0,100)
 y = np.asarray(y)
 
@@ -56,7 +61,7 @@ plt.ylabel('amplitude')
 plt.plot(yf,xf,color='red')
 plt.show()
 
-'''
+
 wf = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
 wf.setnchannels(1)
 wf.setsampwidth(p.get_sample_size(p.get_format_from_width(RESPEAKER_WIDTH)))

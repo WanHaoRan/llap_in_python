@@ -1,42 +1,92 @@
 import Tkinter as tk
-import tkMessageBox
-import Signal_Processing
 import time
 import threading
+import inspect
+import ctypes
+import recording
+import tryPlaysound
 
-#there are several UI components, which are 
-#"play button": click this button will start playing the CW acoustic signal and recording the reflected signal, and start counter
-#"1D distance display": this window display the distance of current object
-#and then the mic array can be used, there are four static microphone, whose position could be easily confirmed
-#so we can infer the reference position of the object from the static microphone position.
-counter = 0
-top = tk.Tk()
-
-def playTheSignal():
-	#tkMessageBox.showinfo("Start!","Start playing audio and recording...")
-	#PlayAudio()		#play the CW signal
-	#RecordAudio()		#record the CW signal
-	t0 = time.time()
-	while(1):
-		t1 = time.time()
-		t = t1-t0
-		b = 'Running Time:'+str(t)+'ms'
-		text.insert(1.0,b)
+class ui(tk.Frame):
+	wait_time=100
+	def __init__(self, parent=None, **kw):
+		tk.Frame.__init__(self, parent, kw)
+		self.time_str=tk.StringVar()
+		tk.Label(self, textvariable = self.time_str).pack()
+		self.t0 = 0
+		self.endflag = 0
+		self.thread = []
 	
-def stopTheSignal():
-	tkMessageBox.showinfo("Stop!","Stop playing audio and recording...")
-	#StopAudio()		#stop the CW signal
-	#StopRecord()		#stop recording
-		
-B1 = tk.Button(top,text = "PLAY", command = playTheSignal)
-
-B2 = tk.Button(top,text = "STOP", command = stopTheSignal)
-
-text = tk.Text(top,width = 30,height = 2)
-text.pack()
-text.insert(1.0,'Distance:  cm')
-
-B1.pack()
-B2.pack()
-
-top.mainloop()
+	#kinda useless
+	def _update(self):
+		t1 = time.time()
+		t = t1-self.t0
+		#self.time_str.set(time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())))
+		self.time_str.set('Has passed: '+str(t)+'s')
+		self.timer = self.after(self.wait_time, self._update)
+	
+	#stop the thread
+	def _async_raise(self,tid, exctype):
+		"""raises the exception, performs cleanup if needed"""
+		tid = ctypes.c_long(tid)
+		if not inspect.isclass(exctype):
+			exctype = type(exctype)
+		res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
+		if res == 0:
+			raise ValueError("invalid thread id")
+		elif res != 1:
+			# """if it returns a number greater than one, you're in trouble,
+			# and you should call it again with exc=NULL to revert the effect"""
+			ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
+			raise SystemError("PyThreadState_SetAsyncExc failed")
+	
+	def start(self):
+		self.t0 = time.time()
+		th1 = threading.Thread(target=self.playCW)
+		th2 = threading.Thread(target=self.recordCW)
+		self.thread.append(th1)
+		self.thread.append(th2)
+		for i in self.thread:
+			i.setDaemon(True)
+			i.start()
+			#print i.ident
+		#self._update()
+		self.pack(side = tk.TOP)
+	
+	def stop(self):
+		#print self.thread[0].ident
+		#print self.thread[1].ident
+		self._async_raise(self.thread[0].ident, SystemExit)
+		#time.sleep(30)
+		self._async_raise(self.thread[1].ident, SystemExit)
+	
+	def playCW(self):
+		while(1):
+			tryPlaysound.playsong()
+			print 'one cycle.'
+	
+	def recordCW(self):
+		while(1):
+			#start counter for signal processing
+			t1 = time.time()
+			t = t1-self.t0
+			self.time_str.set('Distance: '+str(t)+'s')
+			#recording tiny slice of CW wave and do signal processing
+			a = recording.record() #get the recorded data
+			print a
+			
+			
+			#signal processing staff
+			#and then update the distance display here
+			print 'recording ongoing.'
+	
+	
+        
+def main():
+	root = tk.Tk()
+	mw = ui(root)
+	mystart = tk.Button(root, text = 'Play', command = mw.start)
+	mystop = tk.Button(root,text='Stop', command = mw.stop)
+	mystart.pack()
+	mystop.pack()
+	root.mainloop()
+main()
