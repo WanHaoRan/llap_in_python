@@ -39,6 +39,7 @@ class ui(tk.Frame):
 			ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
 			raise SystemError("PyThreadState_SetAsyncExc failed")
 	
+	#when click the play button
 	def start(self):
 		self.t0 = time.time()
 		th1 = threading.Thread(target=self.playCW)
@@ -52,12 +53,14 @@ class ui(tk.Frame):
 		#self._update()
 		self.pack(side = tk.TOP)
 	
+	#when click the stop button
 	def stop(self):
 		#print self.thread[0].ident
 		#print self.thread[1].ident
 		self._async_raise(self.thread[0].ident, SystemExit)
 		#time.sleep(30)
 		self._async_raise(self.thread[1].ident, SystemExit)
+		self.thread = []
 	
 	def playCW(self):
 		while(1):
