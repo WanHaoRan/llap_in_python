@@ -4,7 +4,7 @@ import threading
 import inspect
 import ctypes
 import recording
-import tryPlaysound
+import Playsound
 
 class ui(tk.Frame):
 	wait_time=100
@@ -64,7 +64,7 @@ class ui(tk.Frame):
 	
 	def playCW(self):
 		while(1):
-			tryPlaysound.playsong()
+			Playsound.playsong()
 			print 'one cycle.'
 	
 	def recordCW(self):
