@@ -72,7 +72,7 @@ class ui(tk.Frame):
 			#start counter for signal processing
 			t1 = time.time()
 			t = t1-self.t0
-			self.time_str.set('Distance: '+str(t)+'s')
+			self.time_str.set('Distance: '+str(t)+'cm')
 			#recording tiny slice of CW wave and do signal processing
 			a = recording.record() #get the recorded data
 			print a
