@@ -22,13 +22,13 @@ MinValue = np.zeros([2,NumFreq],dtype = float)		#this two arrays store the max a
 DCValue = np.zeros([2,NumFreq],dtype = float)		#store the DC value estimation result
 WaveLength = np.zeros(NumFreq,dtype = float)
 for i in range(0,NumFreq):
-	Freqs[i] = 17000+i*400
+	Freqs[i] = 12000+i*350
 	WaveLength[i] = SPEED/Freqs[i]
 
 
 
 def GetBaseband(databuffer):	#databuffer is a 1d 1*n array, where n is the number of sampling point in each frequencies.
-	(row,column) = databuffer.shape
+	column = len(databuffer)
 	#the sin and cos buffer afterward will be predifined to achieve faster running time
 	sinbuffer = np.zeros([NumFreq,column],dtype = float)
 	cosbuffer = np.zeros([NumFreq,column],dtype = float)
@@ -37,14 +37,14 @@ def GetBaseband(databuffer):	#databuffer is a 1d 1*n array, where n is the numbe
 			sinbuffer[i][j] = np.sin(2*np.pi*j/AUDIO_SAMPLE_RATE*Freqs[i])
 			cosbuffer[i][j] = np.cos(2*np.pi*j/AUDIO_SAMPLE_RATE*Freqs[i])
 	#turn the databuffer from int to float
-	tdatabuffer = databuffer.astype(np.float)
+	tdatabuffer = np.array(databuffer,dtype = float)
 	IBuffer = np.zeros([NumFreq,column],dtype = float)
 	QBuffer = np.zeros([NumFreq,column],dtype = float)
 	#get I and Q from databuffer, and this step should be redesigned for the time shift.
 	for i in range(0,NumFreq):
 		IBuffer[i] = cosbuffer[i]*tdatabuffer
 		QBuffer[i] = -1*sinbuffer[i]*tdatabuffer
-		f1,f2=signal.butter(3,175/AUDIO_SAMPLE_RATE,btype='lowpass',analog=False,output='ba')
+		f1,f2=signal.butter(3,0.00729,btype='lowpass',analog=False,output='ba')
 		m1 = IBuffer[i]
 		m1 = signal.filtfilt(f1,f2,m1)
 		IBuffer[i] = m1
@@ -56,7 +56,7 @@ def GetBaseband(databuffer):	#databuffer is a 1d 1*n array, where n is the numbe
 	#and return the real part(I) and image part(Q) of baseband signal
 	#use the sine and cosine to multiply the recorded signal(16 different frequencies component) and use the same lowpass filter to cut the useful part 
 	#since the same frequency multiplication get the phase information (less than 100Hz), other frequency will make the multiplication result higher,
-	#which is higher than 400Hz(the frequency interval is 400Hz). So the same low pass CIC filter will get each frequency part's phase information and 
+	#which is higher than 350Hz(the frequency interval is 350Hz). So the same low pass CIC filter will get each frequency part's phase information and 
 	#split the signal into 16x2 parts(I/Q and 16frequencies component). Then, we remove the DC component and use linear regression to get the distance change.
 	#So the return value of this function is the two NumFreq x n array, which are the BaseBandReal and BaseBandImage.
 	
@@ -104,11 +104,11 @@ def RemoveDC(BaseBandReal,BaseBandImage):		#use LEVD algorithm to calculate the 
 		if FreqPower[f] > POWER_THR:
 			if max_valr > MaxValue[0][f] or (max_valr > MinValue[0][f] + PEAK_THR and (MaxValue[0][f]-MinValue[0][f]) > PEAK_THR*4):
 				MaxValue[0][f] = max_valr
-			if min_valr < Minvalue[0][f] or (min_valr < MaxValue[0][f] - PEAK_THR and (MaxValue[0][f]-MinValue[0][f]) > PEAK_THR*4):
+			if min_valr < MinValue[0][f] or (min_valr < MaxValue[0][f] - PEAK_THR and (MaxValue[0][f]-MinValue[0][f]) > PEAK_THR*4):
 				MinValue[0][f] = min_valr
 			if max_vali > MaxValue[1][f] or (max_vali > MinValue[1][f] + PEAK_THR and (MaxValue[1][f]-MinValue[1][f]) > PEAK_THR*4):
 				MaxValue[1][f] = max_vali
-			if min_vali < Minvalue[1][f] or (min_vali < MaxValue[1][f] - PEAK_THR and (MaxValue[1][f]-MinValue[1][f]) > PEAK_THR*4):
+			if min_vali < MinValue[1][f] or (min_vali < MaxValue[1][f] - PEAK_THR and (MaxValue[1][f]-MinValue[1][f]) > PEAK_THR*4):
 				MinValue[1][f] = min_vali
 			
 			if (MaxValue[0][f]-MinValue[0][f]) > PEAK_THR and (MaxValue[1][f]-MinValue[1][f]) > PEAK_THR:
@@ -194,7 +194,7 @@ def CalculateDistance(BaseBandReal,BaseBandImage):
 		distance = 0
 		return distance
 	
-	deltax=NumFreq*((column1-1)*column1*(2*column-1)/6-(column1-1)*column1*(column1-1)/4)
+	deltax=NumFreq*((column1-1)*column1*(2*column1-1)/6-(column1-1)*column1*(column1-1)/4)
 	delta=(sumxy-sumy*(column1-1)/2.0)/deltax*NumFreq/numfreqused
 	
 	varsum=0

@@ -28,17 +28,18 @@ def record():
 	frames = [] 
 
 	#for i in range(0, int(RESPEAKER_RATE / CHUNK * RECORD_SECONDS)):
-	data = stream.read(100)
+	data = stream.read(500)
 	# extract channel 0 data from 8 channels, if you want to extract channel 1, please change to [1::8]
 	a = np.fromstring(data,dtype = np.int16)[0::8]
-	frames.append(a)
+	for i in range(0,500):
+		frames.append(a[i])
 
 	print("* done recording")
 
 	stream.stop_stream()
 	stream.close()
 	p.terminate()
-	return  frames[0]
+	return  frames
 
 #a = record()
 #print a

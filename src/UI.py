@@ -5,6 +5,10 @@ import inspect
 import ctypes
 import recording
 import Playsound
+import Signal_Processing
+
+import matplotlib.pyplot as plt
+from scipy.fftpack import fft,ifft
 
 class ui(tk.Frame):
 	wait_time=100
@@ -75,9 +79,16 @@ class ui(tk.Frame):
 			self.time_str.set('Distance: '+str(t)+'cm')
 			#recording tiny slice of CW wave and do signal processing
 			a = recording.record() #get the recorded data
-			print a
-			
-			
+			del a[0:20]
+			x,y = Signal_Processing.GetBaseband(a)
+			x,y = Signal_Processing.RemoveDC(x,y)
+			#d = Signal_Processing.CalculateDistance(x,y)
+			#plt.subplot(211)
+			plt.plot(x[1],y[1])
+			#plt.subplot(212)
+			#plt.plot(y)
+			plt.show()
+			#print d
 			#signal processing staff
 			#and then update the distance display here
 			print 'recording ongoing.'
