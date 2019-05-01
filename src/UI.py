@@ -72,26 +72,42 @@ class ui(tk.Frame):
 			print 'one cycle.'
 	
 	def recordCW(self):
-		while(1):
-			#start counter for signal processing
-			t1 = time.time()
-			t = t1-self.t0
-			self.time_str.set('Distance: '+str(t)+'cm')
-			#recording tiny slice of CW wave and do signal processing
-			a = recording.record() #get the recorded data
-			del a[0:20]
-			x,y = Signal_Processing.GetBaseband(a)
-			x,y = Signal_Processing.RemoveDC(x,y)
-			#d = Signal_Processing.CalculateDistance(x,y)
-			#plt.subplot(211)
-			plt.plot(x[1],y[1])
-			#plt.subplot(212)
-			#plt.plot(y)
-			plt.show()
-			#print d
-			#signal processing staff
-			#and then update the distance display here
-			print 'recording ongoing.'
+		#i = 0
+		#while(1):
+		#i = i+1
+		#start counter for signal processing
+		t1 = time.time()
+		t = t1-self.t0
+		self.time_str.set('Distance: '+str(t)+'cm')
+		#recording tiny slice of CW wave and do signal processing
+		a = recording.record() #get the recorded data
+		#del a[0:20]
+		#d = .GetDistanceChange(a,t)
+		path = 'test.txt'
+		a = [str(x) for x in a]
+		fil = open(path,'w')
+		fil.write(a)
+		print a
+		#x,y = Signal_Processing.GetBaseband(a,t)
+		#x,y = Signal_Processing.RemoveDC(x,y)
+		#d = Signal_Processing.CalculateDistance(x,y)
+		#plt.subplot(211)
+		#plt.plot(a)
+		#plt.xlabel('I component')
+		#plt.ylabel('Q component')
+		#plt.subplot(212)
+		#x,y = Signal_Processing.RemoveDC(x,y)
+		#plt.plot(y[3])
+		#plt.xlabel('I component')
+		#plt.ylabel('Q component')
+		#plt.show()
+		#print d
+		#signal processing staff
+		#and then update the distance display here
+		print 'recording ongoing.'
+		#if i > 100:
+			#break
+		
 	
 	
         

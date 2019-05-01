@@ -27,15 +27,15 @@ for i in range(0,NumFreq):
 
 
 
-def GetBaseband(databuffer):	#databuffer is a 1d 1*n array, where n is the number of sampling point in each frequencies.
+def GetBaseband(databuffer,tim):	#databuffer is a 1d 1*n array, where n is the number of sampling point in each frequencies.
 	column = len(databuffer)
 	#the sin and cos buffer afterward will be predifined to achieve faster running time
 	sinbuffer = np.zeros([NumFreq,column],dtype = float)
 	cosbuffer = np.zeros([NumFreq,column],dtype = float)
 	for i in range(0,NumFreq):
 		for j in range(0,column):
-			sinbuffer[i][j] = np.sin(2*np.pi*j/AUDIO_SAMPLE_RATE*Freqs[i])
-			cosbuffer[i][j] = np.cos(2*np.pi*j/AUDIO_SAMPLE_RATE*Freqs[i])
+			sinbuffer[i][j] = np.sin(2*np.pi*(j+tim)/AUDIO_SAMPLE_RATE*Freqs[i])
+			cosbuffer[i][j] = np.cos(2*np.pi*(j+tim)/AUDIO_SAMPLE_RATE*Freqs[i])
 	#turn the databuffer from int to float
 	tdatabuffer = np.array(databuffer,dtype = float)
 	IBuffer = np.zeros([NumFreq,column],dtype = float)
@@ -244,9 +244,9 @@ def CalculateDistance(BaseBandReal,BaseBandImage):
 	distance = -delta*column1/2
 	return distance
 	
-def GetDistanceChange(databuffer):		#feed the recorded data into our signal processing function
+def GetDistanceChange(databuffer,tim):		#feed the recorded data into our signal processing function
 	distancechange = 0
-	BaseBandReal,BaseBandImage = GetBaseband(databuffer)
+	BaseBandReal,BaseBandImage = GetBaseband(databuffer,tim)
 	BaseBandReal,BaseBandImage = RemoveDC(BaseBandReal,BaseBandImage)
 	distancechange = CalculateDistance(BaseBandReal,BaseBandImage)
 	return 	distancechange
