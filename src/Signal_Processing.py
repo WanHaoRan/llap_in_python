@@ -14,8 +14,8 @@ NumFreq = 16	#number of frequencies
 RecordSecond = 0.1
 Freqs = np.zeros(NumFreq,dtype=float)
 FreqPower = np.zeros(NumFreq,dtype=float)
-POWER_THR = 15000	#a empirical threshold of DC power estimation, needs calibrate when deployed in different platform
-PEAK_THR = 220		#empirical and needs calibrating.
+POWER_THR = 3500000	#a empirical threshold of DC power estimation, needs calibrate when deployed in different platform
+PEAK_THR = 2000		#empirical and needs calibrating.
 DC_TREND = 0.25		#DC_TREND threshold, may need calibrating
 MaxValue = np.zeros([2,NumFreq],dtype = float)
 MinValue = np.zeros([2,NumFreq],dtype = float)		#this two arrays store the max and min value of real and image baseband signal
@@ -24,8 +24,6 @@ WaveLength = np.zeros(NumFreq,dtype = float)
 for i in range(0,NumFreq):
 	Freqs[i] = 12000+i*350
 	WaveLength[i] = SPEED/Freqs[i]
-
-
 
 def GetBaseband(databuffer,tim):	#databuffer is a 1d 1*n array, where n is the number of sampling point in each frequencies.
 	column = len(databuffer)
@@ -41,34 +39,26 @@ def GetBaseband(databuffer,tim):	#databuffer is a 1d 1*n array, where n is the n
 	IBuffer = np.zeros([NumFreq,column],dtype = float)
 	QBuffer = np.zeros([NumFreq,column],dtype = float)
 	#get I and Q from databuffer, and this step should be redesigned for the time shift.
+	IBufferDown = np.zeros([NumFreq,column/16],dtype = float)
+	QBufferDown = np.zeros([NumFreq,column/16],dtype = float)
 	for i in range(0,NumFreq):
 		IBuffer[i] = cosbuffer[i]*tdatabuffer
 		QBuffer[i] = -1*sinbuffer[i]*tdatabuffer
-		f1,f2=signal.butter(3,0.00729,btype='lowpass',analog=False,output='ba')
-		m1 = IBuffer[i]
-		m1 = signal.filtfilt(f1,f2,m1)
-		IBuffer[i] = m1
-		m1 = QBuffer[i]
-		m1 = signal.filtfilt(f1,f2,m1)
-		QBuffer[i] = m1
-	return IBuffer,QBuffer
-	#applying lowpass filter to I/Q buffer and get the baseband signal
-	#and return the real part(I) and image part(Q) of baseband signal
-	#use the sine and cosine to multiply the recorded signal(16 different frequencies component) and use the same lowpass filter to cut the useful part 
-	#since the same frequency multiplication get the phase information (less than 100Hz), other frequency will make the multiplication result higher,
-	#which is higher than 350Hz(the frequency interval is 350Hz). So the same low pass CIC filter will get each frequency part's phase information and 
-	#split the signal into 16x2 parts(I/Q and 16frequencies component). Then, we remove the DC component and use linear regression to get the distance change.
-	#So the return value of this function is the two NumFreq x n array, which are the BaseBandReal and BaseBandImage.
-	
-	
-	#input should be the format of NumFreq*n array
+		for n in range(0,column/16):
+			IBufferDown[i][n] = IBuffer[i][n*16]
+			QBufferDown[i][n] = QBuffer[i][n*16]
+		f1,f2=signal.butter(4,0.0583,btype='lowpass',analog=False,output='ba')
+		IBufferDown[i] = signal.filtfilt(f1,f2,IBufferDown[i])
+		QBufferDown[i] = signal.filtfilt(f1,f2,QBufferDown[i])
+	return IBufferDown,QBufferDown
+
 def RemoveDC(BaseBandReal,BaseBandImage):		#use LEVD algorithm to calculate the DC value
-	tempdata = np.zeros(4096,dtype = float)
-	tempdata2 = np.zeros(4096,dtype = float)
+	tempdata = np.zeros(100,dtype = float)
+	tempdata2 = np.zeros(100,dtype = float)
 	temp_val = 0
 	row1,column1 = BaseBandReal.shape
 	row2,column2 = BaseBandImage.shape
-	if column1 > 4096 or row1 != row2 or column1 != column2:
+	if column1 > 100 or row1 != row2 or column1 != column2:
 		return
 	
 	for f in range(0,NumFreq):
@@ -99,7 +89,7 @@ def RemoveDC(BaseBandReal,BaseBandImage):		#use LEVD algorithm to calculate the 
 		vsum = vsum+abs(temp_val)/column2
 		
 		FreqPower[f] = vsum+dsum*dsum
-		
+		#print FreqPower[f]
 		#get DC estimation
 		if FreqPower[f] > POWER_THR:
 			if max_valr > MaxValue[0][f] or (max_valr > MinValue[0][f] + PEAK_THR and (MaxValue[0][f]-MinValue[0][f]) > PEAK_THR*4):
@@ -119,23 +109,23 @@ def RemoveDC(BaseBandReal,BaseBandImage):		#use LEVD algorithm to calculate the 
 		BaseBandReal[f] = BaseBandReal[f] - DCValue[0][f]
 		BaseBandImage[f] = BaseBandImage[f] - DCValue[1][f]
 		
-		return BaseBandReal,BaseBandImage
-		
+	return BaseBandReal,BaseBandImage
+
 def CalculateDistance(BaseBandReal,BaseBandImage):
 	distance = 0
-	tempcomplexr = np.zeros(4096,dtype=float)
-	tempcomplexi = np.zeros(4096,dtype=float)	#this two arrays represent the real and image part of the baseband signal
-	tempdata = np.zeros(4096,dtype = float)
-	tempdata2 = np.zeros(4096,dtype = float)
-	tempdata3 = np.zeros(4096,dtype = float)
+	tempcomplexr = np.zeros(100,dtype=float)
+	tempcomplexi = np.zeros(100,dtype=float)	#this two arrays represent the real and image part of the baseband signal
+	tempdata = np.zeros(100,dtype = float)
+	tempdata2 = np.zeros(100,dtype = float)
+	tempdata3 = np.zeros(100,dtype = float)
 	temp_val = 0
-	phasedata = np.zeros([NumFreq,4096],dtype = float)
+	phasedata = np.zeros([NumFreq,100],dtype = float)
 	ignorefreq = np.zeros(NumFreq,dtype = int)
 	
 	row1,column1 = BaseBandReal.shape
 	row2,column2 = BaseBandImage.shape
-	if column1 > 4096 or row1 != row2 or column1 != column2:
-		return
+	#if column1 > 4996 or row1 != row2 or column1 != column2:
+	#	return
 	
 	#process in every frequency component
 	for f in range(0,NumFreq):
@@ -147,7 +137,7 @@ def CalculateDistance(BaseBandReal,BaseBandImage):
 		#get magnitude
 		tempdata = BaseBandReal[f] * BaseBandReal[f] + BaseBandImage[f] * BaseBandImage[f]
 		temp_val = sum(tempdata)
-		
+		#print temp_val/column1
 		if temp_val/column1>POWER_THR:
 			for n in range(0,column1):
 				phasedata[f][n] = ma.atan2(tempcomplexi[n],tempcomplexr[n])
@@ -169,7 +159,7 @@ def CalculateDistance(BaseBandReal,BaseBandImage):
 			#divide the constants
 			temp_val=2*np.pi/WaveLength[f]
 			phasedata[f]=tempdata/temp_val
-		else:	#ignore the low power vector
+		elif temp_val/column1<POWER_THR:	#ignore the low power vector
 			ignorefreq[f]=1
 		
 	#linear regression
@@ -210,11 +200,13 @@ def CalculateDistance(BaseBandReal,BaseBandImage):
 		tempdata = phasedata[f]-tempdata2
 		tempdata3 = tempdata*tempdata
 		var_val[f] = sum(tempdata3)
+		varsum = varsum+var_val[f]
 	varsum=varsum/numfreqused
 	for f in range(0,NumFreq):
 		if ignorefreq[f]==1:
 			continue
 		if var_val[f]>varsum:
+			#print var_val[f],varsum
 			ignorefreq[f]=1
 	
 	for i in range(0,column1):
@@ -234,7 +226,9 @@ def CalculateDistance(BaseBandReal,BaseBandImage):
 		sumxy = sumxy+temp_val
 		temp_val = sum(phasedata[f])
 		sumy = sumy+temp_val
-		
+	
+	#print sumxy,sumy,column1,numfreqused
+	#print ignorefreq
 	if numfreqused == 0:
 		distance = 0
 		return distance
