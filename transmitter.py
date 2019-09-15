@@ -2,9 +2,11 @@ import numpy as np
 import pygame
 import socket
 import random
+import os
+#os.putenv('SDL_AUDIODRIVER', '')
 
-fs = 16000
-sampleRate = 48000
+fs = 16000.
+sampleRate = 48000.
 new_phase = 0
 last_phase = 0
 
@@ -17,17 +19,17 @@ deviceid = 1
 
 is_playing = 0
 
-pygame.mixer.init(frequency=48000,size=-16,channels=1,buffer=4096,devicename='ac101')
+#pygame.mixer.pre_init(48000,-16,2,4096)
+pygame.mixer.init(48000,-16,1,4096)
 
-s = np.zeros(4096)
-
-for i in range(0,len(s)):
-	s = np.sin(2*np.pi*fs*i/sampleRate + phase)
+t = np.arange(0,0.05,1/sampleRate)
+seq = 0.5*np.sin(2*np.pi*fs*t)
+seq = (seq*32768).astype(np.int16)
 
 best_phase = []
 all_phase = []
 
-sound = pygame.mixer.sound(a)
+sound = pygame.sndarray.make_sound(seq)
 #sound.play(-1)
 
 #phase shift
@@ -42,6 +44,9 @@ def Listen():
 	return data
 
 def main():
+	global sound
+	sound.set_volume(1)
+	sound.play(-1)
 	while True:
 		buff = Listen()
 		if(buff[0] == 'F'):
@@ -55,16 +60,18 @@ def main():
 			best_phase.append(new_phase)
 			last_phase = new_phase
 			sound.stop()
-			s, new_phase = PhaseShift(s, last_phase)
-			sound = pygame.mixer.sound(s)
+			seq, new_phase = PhaseShift(seq, last_phase)
+			sound = pygame.mixer.Sound(s)
 			sound.play(-1)
 		# last phase change is bad
 		if(buff[0] == '0'):
 			all_phase.append(new_phase)
 			best_phase.append(last_phase)
 			sound.stop()
-			s, new_phase = PhaseShift(s, last_phase)
-			sound = pygame.mixer.sound(s)
+			seq, new_phase = PhaseShift(seq, last_phase)
+			sound = pygame.mixer.Sound(s)
 			sound.play(-1)
 		# after phase is changed to the best point, receiver do not feedback anything and transmitters
 		# keep playing
+
+main()
